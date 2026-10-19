@@ -1,24 +1,33 @@
 {
   "name": "dsh-model-usage",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Desktop usage panel: a '用量' button in the session header showing the usage of the model the current conversation runs on (with a manual model override), queried with that provider's own credential reference — Command Code, DeepSeek, OpenCode Go, OpenRouter, Moonshot, SiliconFlow, New API — and kept warm by a background auto-refresh",
   "private": true,
   "license": "MIT",
   "type": "module",
   "main": "lib/index.js",
+  "engines": {
+    "dsh": ">=0.2.1-rc.2"
+  },
   "exports": {
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
     "./cordis.patch.yml": "./cordis.patch.yml",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
     "./package.json": "./package.json"
   },
   "dsh": {
+    "manifestVersion": 1,
     "bundle": {
       "patch": "./cordis.patch.yml"
     },
     "client": {
       "platform": "web",
-      "inject": [],
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ],
       "immediately": false
     }
   },
@@ -26,6 +35,8 @@
     "lib/index.js",
     "lib/client.js",
     "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
     "README.md",
     "LICENSE"
   ]

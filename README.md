@@ -18,10 +18,13 @@
   - `POST /model-usage/balance`：按给定（或当前对话）的模型查询用量；
   - `GET /model-usage/providers`：只读列出本部署声明的供应商路由与密钥是否就绪；
   - `GET /model-usage/models`：可路由模型目录 + 每个供应商对应的用量接口类型（手动切换用）。
+  三条路由都会先向 `connection` 服务要一次浏览器信任裁决（Host/Origin 栅栏），被拒即 401/403；
   密钥只在本机 host 进程内使用，浏览器只拿到归一化数据 + 凭据**引用名**（永不返回值）。
 - **浏览器半**（`lib/client.js`）：注册 `conversation.session.header.utilities` slot，
-  从会话的 `modelSelection` 投影读出当前模型（或用手动指定的模型），随请求发给 host；
-  在后台按间隔刷新用量（弹窗关闭也生效），点开弹窗展示状态与用量。
+  从会话的 `modelSelection` 投影读出当前模型（线格式 `{ lastUsed, next }`，`next` 已经含了
+  尚未使用的这次选择），随请求发给 host；在后台按间隔刷新用量（弹窗关闭也生效），
+  点开弹窗展示状态与用量。控件（按钮 / 弹窗）是本插件自写的，样式与文案分别来自主题 token
+  与 Client locale 服务。
 
 ### 模型与密钥是怎么确定的
 
@@ -107,48 +110,46 @@ provider 没声明 `apiKeyEnv` 时按约定推导引用名 `${PROVIDER}_API_KEY`
   其余收在「显示其余 N 个未配置路由」按钮后面；每个弹窗都自带上限高度 + 内部滚动
   （Modal 原语把高度留给调用方，不设上限时内容会顶出屏幕）。
 
+### 与当前 Harness 的适配
+
+- manifest：`dsh.bundle.patch`、`dsh.client`（`platform: web`）、`dsh.manifestVersion: 1`，
+  以及 `engines.dsh: ">=0.2.1-rc.2"`（本插件逐项核对过的版本，只挡更旧的宿主）。
+- 展示元数据：`locale/zh.json` + `locale/en.json`（`meta.title` / `meta.description`）与
+  `icon.svg` 都已从 `exports` / `files` 导出，插件列表与 bundle 详情直接读取。
+- 浏览器半只 require `react`（loader 的冻结模块表），不 require 任何 Harness Client 包；
+  数据面走本插件自己的 `webServer` 路由 + 同源 `fetch`（官方浏览器插件同款做法）。
+- host 半只用 Node 原生模块（`node:fs` / `node:os`）与注入的 `webServer` / `credentials` /
+  `connection` 服务，`llm` / `settings` / `sessions` / `sessionProjections` /
+  `sessionController` / `agentDefaultModel` / `deepseekAccount` 都通过 `ctx.get()` 可选读取。
+
 ## 安装
 
-本插件 host 半**不 import 任何需要 node_modules 解析的包**（只用 Node 原生 `fetch` 与注入的
-`webServer` / `credentials` 服务，`llm` / `settings` / `sessions` / `sessionProjections` /
-`agentDefaultModel` / `deepseekAccount` 都通过 `ctx.get()` 可选读取），因此可以以 **junction**
-链接到源码目录，改源码即生效；没有 junction 条件时（如跨盘），直接**复制目录**到 profile 的
-node_modules 同样可用。
+当前 Harness 的插件安装入口是插件管理器的 bundle 安装：它负责把包安装进当前 profile、
+把 bundle 挂载进 profile 的 patch 层并激活，**不要**手写 profile 的 `cordis.patch.yml`
+或往 `$DSH_HOME/profiles/<profile>/node_modules` 里手工复制。本插件声明了
+`dsh.bundle.patch`，所以安装后会自动挂载（row id `model-usage`）。
 
-### 方式 A：dsh plugin add（推荐，需能访问 harness 检出）
+对 agent 会话：把本目录的绝对路径交给 `plugin_manager` 的 `install_bundle`。
+对 CLI：在能访问 harness 检出的环境里用 `dsh plugin --profile <profile> add <插件目录绝对路径>`，
+再按需要重启 `dsh web`。
 
-```sh
-dsh plugin --profile web add <插件目录绝对路径>
-```
+安装后：
 
-然后在 `$DSH_HOME/profiles/web/cordis.patch.yml` 的 insert 里挂载（`dsh plugin add`
-不声明 `dsh.bundle` 时不会自动挂载）：
-
-```yaml
-- insert:
-    - id: model-usage
-      name: 'dsh-model-usage'
-```
-
-最后重启 `dsh web`（host 生效）+ 浏览器硬刷新（浏览器半生效）。
-
-### 方式 B：手工（不依赖 dsh CLI）
-
-1. 把本目录复制（或建 junction）到
-   `$DSH_HOME/profiles/web/node_modules/dsh-model-usage`：
-   ```powershell
-   # 复制
-   Copy-Item -Recurse <插件目录> "$env:USERPROFILE\.dsh\profiles\web\node_modules\dsh-model-usage"
-   # 或 junction（需同盘或支持跨盘）
-   New-Item -ItemType Junction -Path "$env:USERPROFILE\.dsh\profiles\web\node_modules\dsh-model-usage" -Target <插件目录>
-   ```
-   （`$DSH_HOME` 未设时默认 `~/.dsh`，即 `$env:USERPROFILE\.dsh`。node_modules 里的目录名要与包名一致。）
-2. 在 `$DSH_HOME/profiles/web/cordis.patch.yml` 的 insert 里挂载（见方式 A）。
-3. 重启 `dsh web` + 浏览器硬刷新。
+- host 半改动需要重启 `dsh web`；
+- 浏览器半（`lib/client.js`）改动后硬刷新页面即可（开发时 `pnpm run dev:web` 会推送重建）。
 
 ## 说明
 
-- 浏览器半依赖 `react` 与 `@deepseek-ai/dsh-client-ui-primitives`（dsh web 运行时提供，无需安装）。
+- 浏览器半**只从 loader 的模块表取 `react`**，不 require 任何 Harness Client 包：
+  面板里的按钮与弹窗是本插件自己的控件，只用当前主题列出的 `--dsw-alias-*` token 上色
+  （唯一例外是弹窗遮罩，主题没有对应的 scrim token）。
+- 浏览器半的文案全部走 Client locale 服务（`ctx.locale`，命名空间 `dsh-model-usage`，
+  中英双语），跟随界面语言切换；host 返回的**接口诊断信息**（供应商报错原文）按原样显示。
+- 样式表随 cell 渲染（`<style>` 是 cell 输出的一部分），slot 条目卸载时一起消失，
+  不往 `document.head` 之外留东西。
+- 三条 host 路由在应答前都会先问 composition 的 connection 服务要一次浏览器信任裁决
+  （本机 Host/Origin 栅栏），与官方浏览器插件同款；被拒时直接回 401/403。
+- 浏览器半用**文档相对路径**（`model-usage/...`）访问这三条路由，因此 GUI 挂在子目录下也能用。
 - 用量只能查到**供应商账户级**的数据（余额 / 套餐窗口 / 请求数）；同一把 key 下的模型共享这些额度。
 - Command Code 模式的数字与官方 CLI 的 `/usage` 一致（同一组私有端点）。
 - 密钥只在本机 host 进程内使用，不写入日志、不返回给浏览器。
