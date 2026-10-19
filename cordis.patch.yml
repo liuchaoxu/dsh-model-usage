@@ -3,6 +3,9 @@
 # usage of the model the current conversation runs on (with that provider's own
 # credential reference); the browser half (discovered by client-modules from
 # this row's dsh.client declaration) renders the 用量 button and panel.
+# No Config schema is declared, so an empty config keeps the row easy to extend
+# from a user patch layer later.
 - insert:
     - id: model-usage
       name: 'dsh-model-usage'
+      config: {}

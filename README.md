@@ -1,5 +1,46 @@
 # dsh-model-usage（用量）
 
+## English
+
+A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin. It adds a **用量 / Usage**
+entry to the right end of the session header (`conversation.session.header.utilities`) showing the
+provider-account usage behind the model the current conversation runs on — read with that provider's
+own credential reference, never with another provider's key.
+
+- **Follows the conversation**: the model comes from the session's `modelSelection` projection, the
+  key from that provider's own credential reference, the numbers from that provider's usage API.
+- **Manual target**: pick any routable provider model in the panel without changing what the
+  conversation runs on.
+- **Warm in the background**: refreshes on an interval while the panel is closed.
+- **Read-only directory**: lists the deployment's provider routes, their usage API kind, credential
+  reference name, and whether that reference is configured — never a value.
+
+Adapters: Command Code, DeepSeek (official balance and signed-in account wallet), OpenCode Go,
+OpenRouter, Moonshot / Kimi, SiliconFlow, and the cc-switch New API convention for other
+OpenAI-compatible routes. Everything else reports "usage query not supported" instead of guessing.
+
+### Install
+
+```sh
+# npm (this package is published as a Harness bundle)
+dsh plugin --profile <profile> add dsh-model-usage
+```
+
+Or, from a harness agent session, ask the plugin manager to install the bundle by name
+(`install_bundle` with target `dsh-model-usage`). Either path installs the package into the profile,
+mounts its `cordis.patch.yml` row, and enables the bundle (installation enables a new bundle by
+default). With the profile's HMR enabled the change applies immediately; otherwise restart the host,
+and hard-refresh the page for the browser half (it is served by `dsh-client-modules`).
+
+Requirements: Harness `>=0.2.1-rc.2` (declared as `engines.dsh`) and its Web surface. No build step,
+no runtime dependencies: the host half is Node builtins only, the browser half requires nothing but
+the frozen `react` module. Nothing is uploaded anywhere; the host process calls the provider API with
+the key it already holds and returns only normalized numbers plus the credential *reference name*.
+
+License: MIT. This is an independent community plugin, not affiliated with or endorsed by DeepSeek.
+
+## 中文
+
 在会话页面头部最右侧的 utilities 区（`conversation.session.header.utilities`）加一个「用量」入口；
 点开弹窗即可查看**当前对话所用模型**对应供应商账户的用量，也可以在面板里**手动切换**到别的
 供应商模型查询。
@@ -118,25 +159,48 @@ provider 没声明 `apiKeyEnv` 时按约定推导引用名 `${PROVIDER}_API_KEY`
   `icon.svg` 都已从 `exports` / `files` 导出，插件列表与 bundle 详情直接读取。
 - 浏览器半只 require `react`（loader 的冻结模块表），不 require 任何 Harness Client 包；
   数据面走本插件自己的 `webServer` 路由 + 同源 `fetch`（官方浏览器插件同款做法）。
-- host 半只用 Node 原生模块（`node:fs` / `node:os`）与注入的 `webServer` / `credentials` /
-  `connection` 服务，`llm` / `settings` / `sessions` / `sessionProjections` /
-  `sessionController` / `agentDefaultModel` / `deepseekAccount` 都通过 `ctx.get()` 可选读取。
+- host 半只用 Node 原生模块（`node:fs` / `node:os`）；只有 `webServer` 是硬依赖，
+  `connection`（信任栅栏）、`credentials`（取键）、`llm` / `settings` / `sessions` /
+  `sessionProjections` / `sessionController` / `agentDefaultModel` / `deepseekAccount`
+  都在每次使用时通过 `ctx.get()` 读取 —— 少挂服务时插件照常挂载并在面板里说明缺什么，
+  后激活的服务下一次查询就能用上。
+- 浏览器半只有 `slots` 是硬依赖，`locale` 同样按需读取：没有 locale 服务时面板降级显示中文原文，
+  而不是整格消失。
 
 ## 安装
 
-当前 Harness 的插件安装入口是插件管理器的 bundle 安装：它负责把包安装进当前 profile、
-把 bundle 挂载进 profile 的 patch 层并激活，**不要**手写 profile 的 `cordis.patch.yml`
-或往 `$DSH_HOME/profiles/<profile>/node_modules` 里手工复制。本插件声明了
-`dsh.bundle.patch`，所以安装后会自动挂载（row id `model-usage`）。
+包已发布为 npm bundle，安装入口是"把 bundle 装进 profile"：
 
-对 agent 会话：把本目录的绝对路径交给 `plugin_manager` 的 `install_bundle`。
-对 CLI：在能访问 harness 检出的环境里用 `dsh plugin --profile <profile> add <插件目录绝对路径>`，
-再按需要重启 `dsh web`。
+```sh
+# CLI（推荐）
+dsh plugin --profile <profile> add dsh-model-usage
+```
+
+或者在 harness 的 agent 会话里让插件管理器装：`install_bundle`，target 传 `dsh-model-usage`
+（本机开发时传本目录的绝对路径）。两条路都会把包装进 profile、把 `dsh.bundle.patch` 指向的
+row（id `model-usage`）挂进 patch 层并激活——**不要**手写 profile 的 `cordis.patch.yml`，
+也不要往 `$DSH_HOME/profiles/<profile>/node_modules` 手工复制。
 
 安装后：
 
-- host 半改动需要重启 `dsh web`；
+- host 半改动/升级包后需要重启宿主（`dsh web` 或桌面版）；
 - 浏览器半（`lib/client.js`）改动后硬刷新页面即可（开发时 `pnpm run dev:web` 会推送重建）。
+
+## 发布（维护者）
+
+```sh
+npm run verify    # check + smoke；prepublishOnly 会自动跑同一组检查
+npm publish       # 公开包，无需 --access
+```
+
+`scripts/check.mjs` 会在发布前拦住会导致"装完不可用"的问题：缺 `dsh.bundle.patch`、
+`private: true`、exports/files 漏掉 locale 或图标、`lib/client.js` 的 loader id 与包名不一致、
+require 了非基线模块、往 `document.head`/`document.body` 写东西、字典缺键或中英不对称、
+host 半 import 了 node_modules 依赖、路由没用 `ctx.effect` 注册等。
+`scripts/smoke.mjs` 则在纯 Node 里把 host 半挂到桩 ctx 上跑一遍：三条路由的 kind/path、
+无会话服务时的错误信封、以及信任栅栏的 403。两个脚本都不随包发布。
+
+版本约定：面向用户的可见行为变化 → minor；修 bug → patch。`engines.dsh` 只挡比"已核对版本"更旧的宿主。
 
 ## 说明
 

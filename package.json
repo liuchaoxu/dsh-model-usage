@@ -1,12 +1,34 @@
 {
   "name": "dsh-model-usage",
-  "version": "0.7.0",
-  "description": "Desktop usage panel: a '用量' button in the session header showing the usage of the model the current conversation runs on (with a manual model override), queried with that provider's own credential reference — Command Code, DeepSeek, OpenCode Go, OpenRouter, Moonshot, SiliconFlow, New API — and kept warm by a background auto-refresh",
-  "private": true,
+  "version": "0.8.0",
+  "description": "DeepSeek Harness plugin: a 用量 button in the session header showing the provider-account usage behind the model the current conversation runs on (Command Code, DeepSeek, OpenCode Go, OpenRouter, Moonshot, SiliconFlow, New API), with a manual query-target override and background auto-refresh",
   "license": "MIT",
+  "author": "liuchaoxu <ischaoxu@163.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liuchaoxu/dsh-model-usage.git"
+  },
+  "homepage": "https://github.com/liuchaoxu/dsh-model-usage#readme",
+  "bugs": {
+    "url": "https://github.com/liuchaoxu/dsh-model-usage/issues"
+  },
+  "keywords": [
+    "dsh",
+    "deepseek-harness",
+    "plugin",
+    "bundle",
+    "cordis",
+    "usage",
+    "balance",
+    "commandcode",
+    "openrouter",
+    "moonshot",
+    "siliconflow"
+  ],
   "type": "module",
   "main": "lib/index.js",
   "engines": {
+    "node": ">=18",
     "dsh": ">=0.2.1-rc.2"
   },
   "exports": {
@@ -31,6 +53,12 @@
       "immediately": false
     }
   },
+  "scripts": {
+    "check": "node scripts/check.mjs",
+    "smoke": "node scripts/smoke.mjs",
+    "verify": "node scripts/check.mjs && node scripts/smoke.mjs",
+    "prepublishOnly": "node scripts/check.mjs && node scripts/smoke.mjs"
+  },
   "files": [
     "lib/index.js",
     "lib/client.js",
@@ -38,6 +66,7 @@
     "locale/*.json",
     "icon.svg",
     "README.md",
+    "CHANGELOG.md",
     "LICENSE"
   ]
 }
