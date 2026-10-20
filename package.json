@@ -1,7 +1,7 @@
 {
   "name": "dsh-model-usage",
-  "version": "0.8.1",
-  "description": "DeepSeek Harness plugin: a 用量 button in the session header showing the provider-account usage behind the model the current conversation runs on (Command Code, DeepSeek, OpenCode Go, OpenRouter, Moonshot, SiliconFlow, New API), with a manual query-target override and background auto-refresh",
+  "version": "0.8.2",
+  "description": "Provider-account usage for DeepSeek Harness: quota windows, credit balance and request counts for the model a conversation runs on, with per-provider adapters and manual target selection.",
   "license": "MIT",
   "author": "liuchaoxu <ischaoxu@163.com>",
   "repository": {
@@ -14,16 +14,23 @@
   },
   "keywords": [
     "dsh",
+    "dsh-plugin",
+    "deepseek",
     "deepseek-harness",
-    "plugin",
-    "bundle",
     "cordis",
+    "cordis-plugin",
+    "llm",
     "usage",
+    "token-usage",
+    "quota",
+    "billing",
     "balance",
     "commandcode",
     "openrouter",
+    "opencode",
     "moonshot",
-    "siliconflow"
+    "siliconflow",
+    "new-api"
   ],
   "type": "module",
   "main": "lib/index.js",
@@ -57,6 +64,7 @@
     "check": "node scripts/check.mjs",
     "smoke": "node scripts/smoke.mjs",
     "verify": "node scripts/check.mjs && node scripts/smoke.mjs",
+    "test": "node scripts/check.mjs && node scripts/smoke.mjs",
     "prepublishOnly": "node scripts/check.mjs && node scripts/smoke.mjs"
   },
   "files": [
@@ -65,12 +73,12 @@
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
-    "docs/*.png",
+    "docs/screenshots/",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
   ],
   "publishConfig": {
-  "access": "public"
+    "access": "public"
   }
 }

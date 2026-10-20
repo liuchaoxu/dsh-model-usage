@@ -40,11 +40,50 @@ if (typeof name !== 'string' || name === '' || name.includes(' ')) fail('package
 if (manifest.private === true) fail('package.json: "private": true blocks npm publish')
 if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(String(manifest.version))) fail(`package.json: version "${manifest.version}" is not a release semver`)
 if (manifest.license !== 'MIT') fail('package.json: license should stay MIT (the harness itself is MIT)')
-if (typeof manifest.description !== 'string' || manifest.description.length < 40) fail('package.json: description is what npm search shows; make it descriptive')
+if (typeof manifest.description !== 'string' || manifest.description.length < 40 || manifest.description.length > 250) {
+  fail('package.json: description should be 40-250 characters (npm search renders it on one line)')
+}
 if (dsh.manifestVersion !== 1) fail('package.json: dsh.manifestVersion must be 1')
 if (typeof dsh.bundle?.patch !== 'string') fail('package.json: dsh.bundle.patch is what makes this an installable bundle')
 if (dsh.client?.platform !== 'web') fail('package.json: dsh.client.platform must be "web"')
 if (typeof manifest.engines?.dsh !== 'string' || !manifest.engines.dsh.startsWith('>=')) fail('package.json: engines.dsh should be a ">=" range of the harness versions the plugin was verified against')
+
+// npm search ranks on name, description and keywords; the registry page links
+// to repository, homepage and bugs. Keep those fields strict so the package is
+// indexable and every registry link resolves.
+if (!/^[a-z0-9][a-z0-9._-]*$/.test(name) || name.length > 214) {
+  fail('package.json: name must be a lowercase npm name of at most 214 characters')
+}
+if (!Array.isArray(manifest.keywords) || manifest.keywords.length < 5) {
+  fail('package.json: keywords need at least five entries (npm search indexes them)')
+} else {
+  const seen = new Set()
+  for (const keyword of manifest.keywords) {
+    if (typeof keyword !== 'string' || keyword === '' || keyword !== keyword.trim()) {
+      fail(`package.json: keyword ${JSON.stringify(keyword)} must be a non-empty string without surrounding spaces`)
+      continue
+    }
+    if (keyword !== keyword.toLowerCase()) fail(`package.json: keyword "${keyword}" must be lowercase`)
+    if (keyword.length > 32) fail(`package.json: keyword "${keyword}" is longer than 32 characters`)
+    if (seen.has(keyword)) fail(`package.json: duplicate keyword "${keyword}"`)
+    seen.add(keyword)
+  }
+}
+if (typeof manifest.repository?.url !== 'string' || !manifest.repository.url.startsWith('git+https://')) {
+  fail('package.json: repository.url should be a git+https URL (the registry page links to it)')
+}
+if (typeof manifest.homepage !== 'string' || !/^https:\/\//.test(manifest.homepage)) {
+  fail('package.json: homepage should be an https URL')
+}
+if (typeof manifest.bugs?.url !== 'string' || !/^https:\/\//.test(manifest.bugs.url)) {
+  fail('package.json: bugs.url should be an https URL')
+}
+if (manifest.publishConfig?.access !== 'public') {
+  fail('package.json: publishConfig.access should be "public"')
+}
+if (typeof manifest.scripts?.test !== 'string') {
+  fail('package.json: add an npm test script (CI runs it by default)')
+}
 
 const requiredExports = ['.', './client', './cordis.patch.yml', './locale/*.json', './icon']
 for (const key of requiredExports) {
@@ -68,13 +107,22 @@ for (const file of shipped) {
 }
 
 const patterns = manifest.files ?? []
+// npm's files[] entries are globs relative to the package root: `*` stays within
+// one directory, `**` spans directories, and an entry ending in `/` includes the
+// whole directory. A pattern that matches too broadly would silently ship (or
+// hide) files, so the matching here mirrors those rules instead of comparing
+// prefix/suffix.
 const covered = (file) => patterns.some((pattern) => {
   if (pattern === file) return true
-  const star = pattern.indexOf('*')
-  if (star < 0) return false
-  const prefix = pattern.slice(0, star)
-  const suffix = pattern.slice(star + 1)
-  return file.startsWith(prefix) && file.endsWith(suffix)
+  if (pattern.endsWith('/')) return file.startsWith(pattern)
+  const escaped = pattern
+    .split('**')
+    .map((part) => part
+      .split('*')
+      .map((chunk) => chunk.replace(/[.+^${}()|[\]\\]/g, '\\$&'))
+      .join('[^/]*'))
+    .join('.*')
+  return new RegExp(`^${escaped}$`).test(file)
 })
 for (const file of shipped) {
   if (!covered(file)) fail(`files[] does not cover ${file}`)
@@ -87,8 +135,12 @@ for (const file of shipped) {
 // or unshipped image is a broken README, so catch it here.
 if (exists('README.md')) {
   const readme = read('README.md')
-  const images = new Set([...readme.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)/g)].map((match) => match[1]))
-  for (const src of images) {
+  const images = [...readme.matchAll(/!\[([^\]]*)\]\(([^)\s]+)\)/g)].map((match) => ({ alt: match[1].trim(), src: match[2] }))
+  const seen = new Set()
+  for (const { alt, src } of images) {
+    if (alt === '') fail(`README.md: image "${src}" needs alt text`)
+    if (seen.has(src)) continue
+    seen.add(src)
     if (/^(?:[a-z]+:)?\/\//i.test(src)) continue
     if (!exists(src)) {
       fail(`README.md: image "${src}" does not exist`)

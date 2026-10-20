@@ -1,239 +1,295 @@
-# dsh-model-usage（用量）
+# dsh-model-usage
 
-## 截图 / Screenshots
+Provider-account usage for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness)
+sessions. The plugin adds a **Usage** (`用量`) entry to the session header and reports the quota
+windows, balance and request counters of the provider account behind the model the conversation is
+using.
 
-![用量弹窗](docs/screenshots/usage-panel.png)
+Queries run in the host process with the provider's own credential reference. The browser receives
+normalized values and the credential reference name; credential values never leave the host.
 
-「用量」按钮点开的弹窗：当前套餐的 5 小时 / 7 天窗口、信用余额、本次查询对象，以及读取这些数字的凭据引用名。
+![Usage panel](docs/screenshots/usage-panel.png)
 
-The panel behind the **用量** button: the plan's 5-hour and weekly windows, credit balance, the
-query target, and the credential reference the numbers were read with. Screenshots of the other
-dialogs (refresh settings, target picker, provider directory) go in the same folder.
+*Usage panel for a Command Code subscription (Chinese UI): five-hour and weekly quota windows,
+credit balance, spend, request count, and the model and credential reference used for the query.*
 
-## English
+*Command Code 订阅的用量面板：5 小时 / 7 天窗口、信用余额、已花费、请求数，以及本次查询使用的
+模型与凭据引用。*
 
-A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin. It adds a **用量 / Usage**
-entry to the right end of the session header (`conversation.session.header.utilities`) showing the
-provider-account usage behind the model the current conversation runs on — read with that provider's
-own credential reference, never with another provider's key.
+Published on npm as [`dsh-model-usage`](https://www.npmjs.com/package/dsh-model-usage).
 
-- **Follows the conversation**: the model comes from the session's `modelSelection` projection, the
-  key from that provider's own credential reference, the numbers from that provider's usage API.
-- **Manual target**: pick any routable provider model in the panel without changing what the
-  conversation runs on.
-- **Warm in the background**: refreshes on an interval while the panel is closed.
-- **Read-only directory**: lists the deployment's provider routes, their usage API kind, credential
-  reference name, and whether that reference is configured — never a value.
+## Features
 
-Adapters: Command Code, DeepSeek (official balance and signed-in account wallet), OpenCode Go,
-OpenRouter, Moonshot / Kimi, SiliconFlow, and the cc-switch New API convention for other
-OpenAI-compatible routes. Everything else reports "usage query not supported" instead of guessing.
+- **Session model.** The query target comes from the session's `modelSelection` projection, so the
+  panel follows model changes in the conversation.
+- **Manual target.** Any routable provider model can be queried from the panel without changing the
+  model the conversation runs on.
+- **Background refresh.** The mounted component refreshes on an interval, including while the panel
+  is closed.
+- **Provider directory.** The deployment's provider routes are listed with their usage adapter,
+  credential reference name and configuration state. Values are never read out.
 
-### Install
+## Requirements
+
+- DeepSeek Harness `>=0.2.1-rc.2` with the Web surface
+- Node.js `>=18`
+- No runtime dependencies. The browser half requires only the platform `react` module.
+
+## Installation
 
 ```sh
-# npm (this package is published as a Harness bundle)
 dsh plugin --profile <profile> add dsh-model-usage
 ```
 
-Or, from a harness agent session, ask the plugin manager to install the bundle by name
-(`install_bundle` with target `dsh-model-usage`). Either path installs the package into the profile,
-mounts its `cordis.patch.yml` row, and enables the bundle (installation enables a new bundle by
-default). With the profile's HMR enabled the change applies immediately; otherwise restart the host,
-and hard-refresh the page for the browser half (it is served by `dsh-client-modules`).
+From an agent session, the bundle can also be installed by name with `install_bundle` (target
+`dsh-model-usage`, or the repository path for a local checkout). Both paths install the package into
+the profile, mount the bundle patch row `model-usage` and enable the bundle.
 
-Requirements: Harness `>=0.2.1-rc.2` (declared as `engines.dsh`) and its Web surface. No build step,
-no runtime dependencies: the host half is Node builtins only, the browser half requires nothing but
-the frozen `react` module. Nothing is uploaded anywhere; the host process calls the provider API with
-the key it already holds and returns only normalized numbers plus the credential *reference name*.
+With profile HMR enabled, host-side changes apply immediately; otherwise restart the host
+(`dsh web` or the desktop application). The browser half is served by `dsh-client-modules` and is
+picked up by reloading the page.
 
-License: MIT. This is an independent community plugin, not affiliated with or endorsed by DeepSeek.
+## Usage sources
+
+| Provider / base URL | Source | Reported values |
+| --- | --- | --- |
+| `commandcode`, `*.commandcode.ai` | `GET /alpha/whoami?limits=1`, `/alpha/billing/credits`, `/alpha/billing/subscriptions`, `/alpha/usage/summary?since=` | Plan, five-hour and weekly windows, credit balance, spend, request count |
+| `deepseek-official`, `deepseek`, `*.deepseek.com` | `GET https://api.deepseek.com/user/balance` | Balance per currency |
+| `deepseek-account` | `ctx.deepseekAccount.getBalance()` | Wallet balances of the signed-in account, without an API key |
+| `opencode-go`, `opencode.ai/zen/go` | `GET {origin}/zen/go/v1/usage` | Five-hour, weekly and monthly allowances per model |
+| `openrouter`, `*.openrouter.ai` | `GET /api/v1/key`; `GET /api/v1/credits` when the key has no limit of its own | Used, limit, remaining and the account credit pool |
+| `moonshotai`, `moonshotai-cn`, `kimi-coding`, `*.moonshot.cn`, `*.moonshot.ai` | `GET /v1/users/me/balance` | Available, cash and voucher balance |
+| `siliconflow`, `*.siliconflow.cn`, `*.siliconflow.com` | `GET /v1/user/info` | Total, charged and granted balance |
+| Other OpenAI-compatible routes with a `baseURL` | cc-switch New API convention: `GET {origin}/api/user/self` | Quota converted to USD; best effort |
+
+The OpenCode Go endpoint is not publicly documented. Fields are normalized by their common names;
+payloads that cannot be recognized remain available under **Raw response**. OpenCode Zen
+(pay-as-you-go) has no usage endpoint (`/zen/v1/usage`, `/me` and `/credits` return 404), so
+`opencode` routes report that usage queries are not supported. Routes without a `baseURL` and
+without a known provider return an explicit error instead of an inferred endpoint.
+
+Adding an adapter requires selecting the route in `kindOf()` and returning normalized data from a
+`queryXxx()` function: `{ rows }` for label/value lines or `{ windows, models }` for meters. The
+client renders both shapes with the generic card.
+
+## Query target and credentials
+
+1. The browser reads `next ?? lastUsed` from the session's `modelSelection` projection and sends
+   `{ provider, model, reasoningEffort, sessionId }` to `POST /model-usage/balance`.
+2. If the request carries no target, the host falls back to the session projection of the process
+   and then to the deployment default (`agentDefaultModel.currentSelection()`).
+3. The provider's settings location is resolved through `llm.listConfigurableProviders()` and read
+   with `settings.describe()`, which supplies `apiKeyEnv`, `baseURL`, `api` and custom headers.
+4. `ctx.credentials.resolve(apiKeyEnv)` returns the key in use. An unconfigured reference falls back
+   to the environment variable of the same name; Command Code also falls back to
+   `~/.commandcode/auth.json`. Keys are resolved per request, so a key added in Settings → Models is
+   used by the next query without a restart.
+5. The usage adapter is selected from the provider or base URL.
+
+Providers without `apiKeyEnv` use the convention `${PROVIDER}_API_KEY`; `deepseek-official` uses
+`DEEPSEEK_API_KEY`.
+
+The panel header shows the active target. `Auto · <provider> / <model>` follows the conversation.
+Selecting it opens the model picker with `Auto (follow the conversation)` and the routable provider
+models from `sessionController.modelCatalog()`, annotated with their adapter or with
+`usage query not supported`. A manual target changes only the panel's query, not the conversation
+model, and the credential reference follows the selected provider. The choice is stored in
+`dsh-model-usage:model` and can be reset to auto from the panel.
+
+Usage is account-level: models behind the same key share the same quota, so selecting a target
+selects the account to query. The panel lists the model and credential reference used.
+
+## Refresh and status
+
+The component queries when it mounts and when the session model changes. With auto-refresh enabled
+it continues on an interval whether or not the panel is open.
+
+- The status line reports freshness: `Updated just now`, `Updated 12 min ago`,
+  `Refreshing… · showing data from 3 min ago`, or `Not refreshed yet`. A hint is appended when the
+  data is older than the interval.
+- Auto refresh is toggled from the status line or the refresh settings dialog.
+- The interval accepts 1, 5, 15, 30 or 60 minutes, or any value from 1 to 1440. Defaults are enabled
+  and five minutes. The policy is stored in `dsh-model-usage:refresh`.
+- Opening the panel with data inside the interval does not send a request; **Refresh** forces one.
+- A failed query keeps the previous data and appends `Last refresh failed: …`. The full error state
+  with **Retry** appears only when no query has succeeded.
+- The host applies a 30-second timeout per usage call; the browser applies a 45-second outer timeout.
+
+## Security
+
+- Credential values are read in the host process and are never returned to the browser or written to
+  logs. Responses contain normalized values plus the reference name and source.
+- All three routes check the composition's browser trust decision (Host/Origin) through the
+  `connection` service and answer 401/403 when it is denied.
+- The plugin uploads nothing. Usage requests go from the host to the provider API.
+
+## Compatibility
+
+- The bundle declares `dsh.bundle.patch`, `dsh.client` (`platform: web`), `manifestVersion: 1`,
+  `engines.dsh` and `engines.node`.
+- `locale/zh.json` and `locale/en.json` provide the plugin title and description, and `icon.svg` is
+  the icon; both are exported and included in the package.
+- The browser half registers `conversation.session.header.utilities`, requires only `react`, and
+  addresses the plugin routes with document-relative URLs, so a GUI mounted under a subpath works.
+- The host half uses Node built-ins only. `webServer` is the single hard dependency; `connection`,
+  `credentials`, `llm`, `settings`, `sessions`, `sessionProjections`, `sessionController`,
+  `agentDefaultModel` and `deepseekAccount` are resolved through `ctx.get()` when used, so the
+  plugin mounts where those services are optional or activate later.
+- Without a locale service, both dictionaries fall back to the Chinese source text.
+
+## Development
+
+```sh
+npm run verify   # check + smoke, also runs from prepublishOnly
+npm test         # alias for the same suite
+```
+
+`scripts/check.mjs` validates the manifest and npm metadata, shipped files, README images, loader
+id, baseline module requests, dictionaries, host imports and route registration.
+`scripts/smoke.mjs` mounts the host half on a stub context and exercises the three routes, the error
+envelopes and the trust fence.
+
+Release:
+
+1. Set `version` according to Semantic Versioning (visible behavior: minor; fixes: patch).
+2. Update `CHANGELOG.md`.
+3. Run `npm run verify`, then `npm publish`.
+
+Accounts with 2FA publish with `npm publish --otp=<code>`, or authenticate with a Granular Access
+Token that allows bypassing 2FA. Keep tokens in the user-level `~/.npmrc`, outside the repository.
+
+## License
+
+MIT. DeepSeek Harness is also MIT-licensed. This is an independent community plugin, not affiliated
+with or endorsed by DeepSeek.
 
 ## 中文
 
-在会话页面头部最右侧的 utilities 区（`conversation.session.header.utilities`）加一个「用量」入口；
-点开弹窗即可查看**当前对话所用模型**对应供应商账户的用量，也可以在面板里**手动切换**到别的
-供应商模型查询。
+本插件为 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 会话提供
+当前模型对应供应商账户的用量。它在会话头部增加「用量」入口，显示套餐窗口、余额与请求数；
+查询在 host 进程内使用该供应商自己的凭据引用完成，浏览器只收到归一化数值与凭据引用名。
 
-插件做四件事：
+### 功能
 
-- **跟随对话查询**：模型取自会话的 `modelSelection` 投影（与模型选择器同一份事实），
-  密钥取自该供应商自己的凭据引用，用量来自该供应商的用量接口。
-- **支持手动切换查询对象**：可查任意可路由的供应商模型，且不改变当前对话使用的模型。
-- **后台自动刷新**：按间隔在后台保持数字新鲜，弹窗关着也照常刷新。
-- **只读说明目录**：列出本部署声明的供应商路由、各自的用量接口类型、密钥引用名与是否已配置（永不返回值）。
+- **跟随会话模型**：查询对象取自会话的 `modelSelection` 投影，对话中切换模型时面板随之切换。
+- **手动查询对象**：可查询任意可路由的供应商模型，不改变当前对话使用的模型。
+- **后台刷新**：已挂载的组件按间隔刷新，弹窗关闭时同样生效。
+- **供应商目录**：列出本部署声明的供应商路由、用量适配器、凭据引用名与配置状态，不读取凭据值。
 
-## 原理
+### 环境要求
 
-- **node 半**（`lib/index.js`）：通过 `ctx.webServer.register()` 注册 loopback Web 路由：
-  - `POST /model-usage/balance`：按给定（或当前对话）的模型查询用量；
-  - `GET /model-usage/providers`：只读列出本部署声明的供应商路由与密钥是否就绪；
-  - `GET /model-usage/models`：可路由模型目录 + 每个供应商对应的用量接口类型（手动切换用）。
-  三条路由都会先向 `connection` 服务要一次浏览器信任裁决（Host/Origin 栅栏），被拒即 401/403；
-  密钥只在本机 host 进程内使用，浏览器只拿到归一化数据 + 凭据**引用名**（永不返回值）。
-- **浏览器半**（`lib/client.js`）：注册 `conversation.session.header.utilities` slot，
-  从会话的 `modelSelection` 投影读出当前模型（线格式 `{ lastUsed, next }`，`next` 已经含了
-  尚未使用的这次选择），随请求发给 host；在后台按间隔刷新用量（弹窗关闭也生效），
-  点开弹窗展示状态与用量。控件（按钮 / 弹窗）是本插件自写的，样式与文案分别来自主题 token
-  与 Client locale 服务。
+- DeepSeek Harness `>=0.2.1-rc.2`，并启用 Web 界面
+- Node.js `>=18`
+- 无运行时依赖；浏览器半只使用平台提供的 `react` 模块
 
-### 模型与密钥是怎么确定的
-
-1. 浏览器读会话投影 `modelSelection` 的 `next ?? lastUsed`（与模型选择器同一份事实），
-   POST `{ provider, model, reasoningEffort, sessionId }` 给 host。
-   payload 里没有 provider/model 时，host 依次回退到「本进程的会话投影」→「部署默认模型」
-   （`agentDefaultModel.currentSelection()`）。
-2. host 用 `llm.listConfigurableProviders()` 找到该 provider 的配置地址
-   （`settingsNs` + `settingsPath`），再用 `settings.describe()` 读实时配置，得到
-   `apiKeyEnv`（凭据引用）、`baseURL`、`api`、自定义 headers。
-3. 用 `ctx.credentials.resolve(apiKeyEnv)` 取到**当前对话正在用的那把 key**：
-   该引用没配置时回退到同名环境变量；Command Code 再回退 `~/.commandcode/auth.json`。
-   解析是逐次调用进行的，在 设置 → 模型 里新填的 key 下一次查询即可用，不需要重启。
-4. 按 provider / baseURL 选择对应的用量接口（见下表）。
-
-provider 没声明 `apiKeyEnv` 时按约定推导引用名 `${PROVIDER}_API_KEY`
-（如 `commandcode` → `COMMANDCODE_API_KEY`，与 设置 → 模型 里存 key 的名字一致）；
-`deepseek-official` 固定用 `DEEPSEEK_API_KEY`。
-
-### 手动切换查询对象
-
-面板顶部有一行「查询对象」，显示这次查询用的是谁：
-
-- 默认 `自动 · 供应商 / 模型`，跟随当前对话的模型选择（对话里换模型，插件跟着换）。
-- 点它打开「选择模型」：可选 `自动（跟随当前对话）`，或**任意可路由的供应商模型**
-  （来自 `sessionController.modelCatalog()`，每条路由标注它对应的用量接口类型；不支持的会写明
-  `不支持用量查询`）。
-- 选中后只改变**插件查询的对象**，不会切换当前对话使用的模型；密钥也随之变成那个供应商自己的
-  凭据引用。选择存在浏览器 localStorage（`dsh-model-usage:model`），弹窗里「改回自动」可恢复。
-- 注意：用量是**账户级**的，同一把 key 下的模型共享同一份额度，所以切换模型实际是在切换
-  「用哪个供应商的 key 去查哪份额度」；卡片下方「模型 / 密钥」两行会如实显示这次用的是谁。
-
-### 用量接口
-
-| provider / baseURL | 用量来源 |
-| --- | --- |
-| `commandcode`（或 baseURL 落在 `*.commandcode.ai`） | Command Code 私有 API：`GET /alpha/whoami?limits=1`、`/alpha/billing/credits`、`/alpha/billing/subscriptions`、`/alpha/usage/summary?since=`，即官方 CLI `/usage` 的同一组端点；显示套餐、5 小时 / 7 天窗口用量条、信用余额、请求数 |
-| `deepseek-official`、`deepseek`（或 baseURL 落在 `*.deepseek.com`） | `GET https://api.deepseek.com/user/balance`，按币种显示余额 |
-| `deepseek-account` | `ctx.deepseekAccount.getBalance()`：读已登录 DeepSeek 账户的钱包余额（不涉及 API Key） |
-| `opencode-go`（或 baseURL 落在 `opencode.ai/zen/go`） | `GET {origin}/zen/go/v1/usage`（OpenCode Go / Go Plus 订阅额度：5 小时 / 周 / 月，按模型各自的月额度计）。**该端点未公开文档化**，字段按常见写法归一化，识别不了的会原样显示在「原始返回」里 |
-| `openrouter`（或 baseURL 落在 `*.openrouter.ai`） | `GET /api/v1/key`（已用 / 额度 / 剩余）；key 没有独立额度时再查 `GET /api/v1/credits` 补充账户总额度与已用 |
-| `moonshotai`、`moonshotai-cn`、`kimi-coding`（或 baseURL 落在 `*.moonshot.cn` / `*.moonshot.ai`） | `GET /v1/users/me/balance`（可用余额 / 现金余额 / 代金券） |
-| `siliconflow`（或 baseURL 落在 `*.siliconflow.cn` / `*.siliconflow.com`） | `GET /v1/user/info`（总余额 / 充值余额 / 赠送余额） |
-| 其它已配置 `baseURL` 的 OpenAI 兼容路由 | 尽力而为：按 cc-switch 的 New API 约定查 `GET {origin}/api/user/self`（`Authorization: Bearer <key>`、`User-Agent: cc-switch/1.0`），按 `quota / 500000` 归一化为 USD |
-
-**OpenCode Zen（按量付费余额）没有用量接口**：`/zen/v1/usage`、`/me`、`/credits` 全是 404，官方只能在 console 网页看，
-所以 `opencode`（baseURL `https://opencode.ai/zen`）在面板里会显示「不支持用量查询」——同一个域名下的 `/zen/go` 才走 Go 适配器。
-
-既没有 `baseURL`、也不是已知供应商的路由会明确报错（“无法查询用量”），不会去猜接口。
-
-新增一个适配器大约 20 行：在 `kindOf()` 里按 host / provider 认领，写一个 `queryXxx()` 归一到 `{ rows }` 或 `{ windows, models }`，
-客户端会自动用通用卡片渲染（`rows` 出标签值行，`windows` 出用量条，`raw` 收在「原始返回」按钮里）。
-
-### 刷新与状态
-
-刷新是后台行为，不是点击行为：这个 cell 随会话视图挂载，所以它在**挂载时、切换模型时**各查询一次，
-之后只要「自动刷新」是开着的就按间隔在后台自己刷新 —— 弹窗关着也照样刷新，打开时直接就是最近一次的结果。
-
-- **状态行**（弹窗顶部）显示本次刷新的新鲜度：`刷新时间：刚刚` / `刷新时间：12 分钟前`，
-  查询进行中显示 `刷新中… · 当前显示 3 分钟前数据`，从未查询过显示 `尚未刷新`；
-  数据超过刷新间隔时会在状态行补一句提示。
-- **自动刷新开关**：状态行右侧的 `自动刷新：开/关` chip，点一下即切换（设置弹窗里也有「开启/关闭」）。
-  关闭后不再有后台定时刷新，打开弹窗且数据过期时才查询。
-- **刷新间隔**：`刷新设置` 里可选 1 / 5 / 15 / 30 / 60 分钟，也可以直接填 1–1440 之间的分钟数；
-  默认开启自动刷新、间隔 5 分钟。策略存在浏览器 localStorage（`dsh-model-usage:refresh`）。
-- **上次刷新超过间隔时**：打开弹窗不会清空内容 —— 先显示上次查询到的用量，并标记 `刷新中…`，
-  用量接口返回后再替换内容，状态变为 `刷新时间：刚刚`。
-- 数据在间隔内时打开弹窗**不会**发请求（直接用缓存），要强制刷新就点卡片里的「刷新」。
-- 刷新失败（例如接口 5xx / 网络不通）时保留上次数据，并在卡片下方追加 `上次刷新失败：…`；
-  从未成功过才显示整屏错误 + 「重试」。标题按钮在后台刷新时带一个呼吸小圆点，
-  鼠标悬停显示刷新策略。
-- host 侧每次用量接口调用有 30 秒超时，浏览器侧另有一道 45 秒的外层兜底，
-  避免一次卡住的请求把后续自动刷新一直挡在门外。
-
-### 弹窗内容
-
-- 顶部状态行 + 自动刷新 chip + `刷新设置`。
-- 卡片：按上面的接口类型渲染（窗口用量条 / 余额 / 钱包）。
-- 卡片下方「模型 · 密钥 · 用量页」：本次查询用的 provider/model（含推理档位）与**凭据引用名 + 来源**
-  （例如 `COMMANDCODE_API_KEY · 凭据 COMMANDCODE_API_KEY（store）`），确认用的是当前对话那把 key。
-- 底部「说明」：列出本部署声明的供应商路由 —— 用量接口类型、密钥引用名、是否已配置、接口地址。
-  默认只列出**有用量接口或已配置密钥**的路由（有些部署自带的目录有数十个路由），
-  其余收在「显示其余 N 个未配置路由」按钮后面；每个弹窗都自带上限高度 + 内部滚动
-  （Modal 原语把高度留给调用方，不设上限时内容会顶出屏幕）。
-
-### 与当前 Harness 的适配
-
-- manifest：`dsh.bundle.patch`、`dsh.client`（`platform: web`）、`dsh.manifestVersion: 1`，
-  以及 `engines.dsh: ">=0.2.1-rc.2"`（本插件逐项核对过的版本，只挡更旧的宿主）。
-- 展示元数据：`locale/zh.json` + `locale/en.json`（`meta.title` / `meta.description`）与
-  `icon.svg` 都已从 `exports` / `files` 导出，插件列表与 bundle 详情直接读取。
-- 浏览器半只 require `react`（loader 的冻结模块表），不 require 任何 Harness Client 包；
-  数据面走本插件自己的 `webServer` 路由 + 同源 `fetch`（官方浏览器插件同款做法）。
-- host 半只用 Node 原生模块（`node:fs` / `node:os`）；只有 `webServer` 是硬依赖，
-  `connection`（信任栅栏）、`credentials`（取键）、`llm` / `settings` / `sessions` /
-  `sessionProjections` / `sessionController` / `agentDefaultModel` / `deepseekAccount`
-  都在每次使用时通过 `ctx.get()` 读取 —— 少挂服务时插件照常挂载并在面板里说明缺什么，
-  后激活的服务下一次查询就能用上。
-- 浏览器半只有 `slots` 是硬依赖，`locale` 同样按需读取：没有 locale 服务时面板降级显示中文原文，
-  而不是整格消失。
-
-## 安装
-
-包已发布为 npm bundle，安装入口是"把 bundle 装进 profile"：
+### 安装
 
 ```sh
-# CLI（推荐）
 dsh plugin --profile <profile> add dsh-model-usage
 ```
 
-或者在 harness 的 agent 会话里让插件管理器装：`install_bundle`，target 传 `dsh-model-usage`
-（本机开发时传本目录的绝对路径）。两条路都会把包装进 profile、把 `dsh.bundle.patch` 指向的
-row（id `model-usage`）挂进 patch 层并激活——**不要**手写 profile 的 `cordis.patch.yml`，
-也不要往 `$DSH_HOME/profiles/<profile>/node_modules` 手工复制。
+也可在 agent 会话中通过 `install_bundle` 安装（target 为 `dsh-model-usage`，本地开发时传仓库路径）。
+两种方式都会把包装入 profile、挂载 bundle patch 的 `model-usage` 行并启用。
 
-安装后：
+启用 profile HMR 时 host 侧改动立即生效；否则重启宿主（`dsh web` 或桌面版）。浏览器半由
+`dsh-client-modules` 提供，刷新页面后生效。
 
-- host 半改动/升级包后需要重启宿主（`dsh web` 或桌面版）；
-- 浏览器半（`lib/client.js`）改动后硬刷新页面即可（开发时 `pnpm run dev:web` 会推送重建）。
+### 用量来源
 
-## 发布（维护者）
+| provider / baseURL | 来源 | 返回值 |
+| --- | --- | --- |
+| `commandcode`、`*.commandcode.ai` | `GET /alpha/whoami?limits=1`、`/alpha/billing/credits`、`/alpha/billing/subscriptions`、`/alpha/usage/summary?since=` | 套餐、5 小时 / 7 天窗口、信用余额、已花费、请求数 |
+| `deepseek-official`、`deepseek`、`*.deepseek.com` | `GET https://api.deepseek.com/user/balance` | 按币种的余额 |
+| `deepseek-account` | `ctx.deepseekAccount.getBalance()` | 已登录账户的钱包余额（不涉及 API Key） |
+| `opencode-go`、`opencode.ai/zen/go` | `GET {origin}/zen/go/v1/usage` | 按模型的 5 小时 / 周 / 月额度 |
+| `openrouter`、`*.openrouter.ai` | `GET /api/v1/key`；key 无独立额度时再查 `GET /api/v1/credits` | 已用、额度、剩余与账户额度池 |
+| `moonshotai`、`moonshotai-cn`、`kimi-coding`、`*.moonshot.cn`、`*.moonshot.ai` | `GET /v1/users/me/balance` | 可用余额、现金余额、代金券 |
+| `siliconflow`、`*.siliconflow.cn`、`*.siliconflow.com` | `GET /v1/user/info` | 总余额、充值余额、赠送余额 |
+| 其它带 `baseURL` 的 OpenAI 兼容路由 | cc-switch New API 约定：`GET {origin}/api/user/self` | 按约定换算为 USD，尽力而为 |
+
+OpenCode Go 的端点未公开文档化，字段按常见命名归一化；无法识别的返回保留在「原始返回」中。
+OpenCode Zen（按量付费）没有用量接口（`/zen/v1/usage`、`/me`、`/credits` 均为 404），
+`opencode` 路由会明确提示不支持用量查询。既无 `baseURL`、也非已知供应商的路由返回明确错误，
+不会推断接口。
+
+新增适配器只需在 `kindOf()` 中认领路由，并由 `queryXxx()` 返回归一化数据：`{ rows }` 渲染为
+标签值行，`{ windows, models }` 渲染为用量条，客户端统一用通用卡片展示。
+
+### 查询对象与凭据
+
+1. 浏览器读取会话 `modelSelection` 投影的 `next ?? lastUsed`，向 `POST /model-usage/balance`
+   发送 `{ provider, model, reasoningEffort, sessionId }`。
+2. 请求未携带查询对象时，host 依次回退到本进程的会话投影与部署默认模型
+   （`agentDefaultModel.currentSelection()`）。
+3. host 通过 `llm.listConfigurableProviders()` 取得该 provider 的配置位置，并用
+   `settings.describe()` 读取实时配置，得到 `apiKeyEnv`、`baseURL`、`api` 与自定义 headers。
+4. `ctx.credentials.resolve(apiKeyEnv)` 取得当前使用的 key。引用未配置时回退到同名环境变量；
+   Command Code 还会回退到 `~/.commandcode/auth.json`。解析在每次查询时进行，因此
+   「设置 → 模型」中新填的 key 无需重启即可用于下一次查询。
+5. 按 provider 或 baseURL 选择用量适配器。
+
+未声明 `apiKeyEnv` 的 provider 按 `${PROVIDER}_API_KEY` 约定推导引用名，`deepseek-official`
+使用 `DEEPSEEK_API_KEY`。
+
+面板顶部显示当前查询对象。`自动 · <provider> / <model>` 跟随对话；点击后可在模型选择器中选择
+`自动（跟随当前对话）`，或选择 `sessionController.modelCatalog()` 中任意可路由模型（标注其适配器
+或「不支持用量查询」）。手动选择只改变面板的查询对象，不改变对话模型，凭据引用随所选供应商切换；
+选择保存在 `dsh-model-usage:model`，可在面板中改回自动。
+
+用量是账户级数据：同一把 key 下的模型共享同一份额度，因此切换查询对象即切换要查询的账户。
+面板底部列出本次查询使用的模型与凭据引用。
+
+### 刷新与状态
+
+组件在挂载时与会话模型变化时查询。开启自动刷新后，无论弹窗是否打开，都会按间隔继续查询。
+
+- 状态行显示数据新鲜度：`刷新时间：刚刚`、`刷新时间：12 分钟前`、
+  `刷新中… · 当前显示 3 分钟前数据`、`尚未刷新`；数据超过刷新间隔时会追加提示。
+- 自动刷新可在状态行或刷新设置中开关。
+- 刷新间隔支持 1 / 5 / 15 / 30 / 60 分钟，也可填写 1–1440 之间的任意分钟数；默认开启、间隔
+  5 分钟。策略保存在 `dsh-model-usage:refresh`。
+- 数据仍在间隔内时打开面板不会发起请求；「刷新」按钮可强制查询。
+- 查询失败时保留上次数据并追加 `上次刷新失败：…`；仅在从未成功时显示整屏错误与「重试」。
+- host 侧单次用量请求超时 30 秒，浏览器侧另有 45 秒外层超时。
+
+### 安全
+
+- 凭据值只在 host 进程内读取，不返回浏览器，也不写入日志；响应仅包含归一化数值、引用名与来源。
+- 三条路由在应答前通过 `connection` 服务校验浏览器信任（Host/Origin），未通过时返回 401/403。
+- 插件不上传任何数据，用量请求由 host 直接发往供应商接口。
+
+### 兼容性
+
+- bundle 声明 `dsh.bundle.patch`、`dsh.client`（`platform: web`）、`manifestVersion: 1`、
+  `engines.dsh` 与 `engines.node`。
+- `locale/zh.json`、`locale/en.json` 提供插件标题与描述，`icon.svg` 为图标；两者都已导出并包含在包内。
+- 浏览器半注册 `conversation.session.header.utilities`，只依赖 `react`，并使用文档相对路径访问
+  插件路由，因此 GUI 挂在子目录下同样可用。
+- host 半只使用 Node 内置模块。`webServer` 是唯一硬依赖；`connection`、`credentials`、`llm`、
+  `settings`、`sessions`、`sessionProjections`、`sessionController`、`agentDefaultModel`、
+  `deepseekAccount` 均按需通过 `ctx.get()` 获取，服务缺失或稍后激活时插件仍可挂载。
+- 没有 locale 服务时，词典回退为中文原文。
+
+### 开发
 
 ```sh
-npm run verify    # check + smoke；prepublishOnly 会自动跑同一组检查
-npm publish       # 公开包，无需 --access
+npm run verify   # check + smoke，prepublishOnly 同样执行
+npm test         # 同一套检查的别名
 ```
 
-`scripts/check.mjs` 会在发布前拦住会导致"装完不可用"的问题：缺 `dsh.bundle.patch`、
-`private: true`、exports/files 漏掉 locale 或图标、`lib/client.js` 的 loader id 与包名不一致、
-require 了非基线模块、往 `document.head`/`document.body` 写东西、字典缺键或中英不对称、
-host 半 import 了 node_modules 依赖、路由没用 `ctx.effect` 注册等。
-`scripts/smoke.mjs` 则在纯 Node 里把 host 半挂到桩 ctx 上跑一遍：三条路由的 kind/path、
-无会话服务时的错误信封、以及信任栅栏的 403。两个脚本都不随包发布。
+`scripts/check.mjs` 校验清单与 npm 元数据、随包文件、README 图片、loader id、基线模块、
+词典、host 导入与路由注册；`scripts/smoke.mjs` 在桩 ctx 上挂载 host 半，覆盖三条路由、
+错误响应与信任栅栏。
 
-版本约定：面向用户的可见行为变化 → minor；修 bug → patch。`engines.dsh` 只挡比"已核对版本"更旧的宿主。
+发布流程：
 
-账号侧前置条件：如果 npm 账号开了 2FA，用普通 `.npmrc` 里的令牌发布会返回
-`E403 ... Two-factor authentication or granular access token with bypass 2fa enabled is required`。
-两条解法：`npm publish --otp=<验证码>`（TOTP 账号），或在 npm 网页上建一个
-**Granular Access Token**（Permissions = Read and write，Packages = All packages，
-勾选 allow bypass 2FA），再 `npm config set //registry.npmjs.org/:_authToken <token>`。
-令牌只写进用户级 `~/.npmrc`，不要进仓库。
+1. 按语义化版本更新 `version`（可见行为变化为 minor，修复为 patch）。
+2. 更新 `CHANGELOG.md`。
+3. 运行 `npm run verify`，然后执行 `npm publish`。
 
-## 说明
+启用 2FA 的账号可用 `npm publish --otp=<验证码>` 发布，或使用允许绕过 2FA 的 Granular Access
+Token 认证。令牌只保存在用户级 `~/.npmrc`，不要提交到仓库。
 
-- 浏览器半**只从 loader 的模块表取 `react`**，不 require 任何 Harness Client 包：
-  面板里的按钮与弹窗是本插件自己的控件，只用当前主题列出的 `--dsw-alias-*` token 上色
-  （唯一例外是弹窗遮罩，主题没有对应的 scrim token）。
-- 浏览器半的文案全部走 Client locale 服务（`ctx.locale`，命名空间 `dsh-model-usage`，
-  中英双语），跟随界面语言切换；host 返回的**接口诊断信息**（供应商报错原文）按原样显示。
-- 样式表随 cell 渲染（`<style>` 是 cell 输出的一部分），slot 条目卸载时一起消失，
-  不往 `document.head` 之外留东西。
-- 三条 host 路由在应答前都会先问 composition 的 connection 服务要一次浏览器信任裁决
-  （本机 Host/Origin 栅栏），与官方浏览器插件同款；被拒时直接回 401/403。
-- 浏览器半用**文档相对路径**（`model-usage/...`）访问这三条路由，因此 GUI 挂在子目录下也能用。
-- 用量只能查到**供应商账户级**的数据（余额 / 套餐窗口 / 请求数）；同一把 key 下的模型共享这些额度。
-- Command Code 模式的数字与官方 CLI 的 `/usage` 一致（同一组私有端点）。
-- 密钥只在本机 host 进程内使用，不写入日志、不返回给浏览器。
-- 本插件以 [MIT 许可](LICENSE)发布；DeepSeek Harness 本身同为 MIT，二者许可一致、可双向复用代码。
-  本项目是独立社区插件，与深度求索公司无隶属或背书关系。
-- 浏览器半是**手写的闭包工厂 bundle**，改动后硬刷新浏览器生效；host 半改动需重启 `dsh web`。
+### 许可
+
+MIT。DeepSeek Harness 同样以 MIT 许可发布。本项目为独立社区插件，与深度求索公司无隶属或背书关系。
