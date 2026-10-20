@@ -1,4 +1,6 @@
 # Changelog
+## 0.8.1
+public
 
 ## 0.8.0
 

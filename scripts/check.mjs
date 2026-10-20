@@ -80,6 +80,27 @@ for (const file of shipped) {
   if (!covered(file)) fail(`files[] does not cover ${file}`)
 }
 
+// --- README screenshots -----------------------------------------------------
+// Screenshots are referenced with repository-relative paths (GitHub renders
+// them as-is; npm resolves them against the repository) and shipped in
+// files[] so a checkout and the package page show the same image. A missing
+// or unshipped image is a broken README, so catch it here.
+if (exists('README.md')) {
+  const readme = read('README.md')
+  const images = new Set([...readme.matchAll(/!\[[^\]]*\]\(([^)\s]+)\)/g)].map((match) => match[1]))
+  for (const src of images) {
+    if (/^(?:[a-z]+:)?\/\//i.test(src)) continue
+    if (!exists(src)) {
+      fail(`README.md: image "${src}" does not exist`)
+      continue
+    }
+    if (!covered(src)) fail(`README.md: image "${src}" is not shipped (add it to files[])`)
+    const bytes = statSync(join(root, src)).size
+    if (bytes > 2 * 1024 * 1024) fail(`README.md: image "${src}" is ${bytes} bytes (keep screenshots under 2 MiB)`)
+    notes.push(`readme image: ${src} (${bytes} bytes)`)
+  }
+}
+
 // --- patch row --------------------------------------------------------------
 if (exists('cordis.patch.yml')) {
   const patch = read('cordis.patch.yml')

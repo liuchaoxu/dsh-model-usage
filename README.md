@@ -1,5 +1,15 @@
 # dsh-model-usage（用量）
 
+## 截图 / Screenshots
+
+![用量弹窗](docs/screenshots/usage-panel.png)
+
+「用量」按钮点开的弹窗：当前套餐的 5 小时 / 7 天窗口、信用余额、本次查询对象，以及读取这些数字的凭据引用名。
+
+The panel behind the **用量** button: the plan's 5-hour and weekly windows, credit balance, the
+query target, and the credential reference the numbers were read with. Screenshots of the other
+dialogs (refresh settings, target picker, provider directory) go in the same folder.
+
 ## English
 
 A [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) plugin. It adds a **用量 / Usage**
@@ -201,6 +211,13 @@ host 半 import 了 node_modules 依赖、路由没用 `ctx.effect` 注册等。
 无会话服务时的错误信封、以及信任栅栏的 403。两个脚本都不随包发布。
 
 版本约定：面向用户的可见行为变化 → minor；修 bug → patch。`engines.dsh` 只挡比"已核对版本"更旧的宿主。
+
+账号侧前置条件：如果 npm 账号开了 2FA，用普通 `.npmrc` 里的令牌发布会返回
+`E403 ... Two-factor authentication or granular access token with bypass 2fa enabled is required`。
+两条解法：`npm publish --otp=<验证码>`（TOTP 账号），或在 npm 网页上建一个
+**Granular Access Token**（Permissions = Read and write，Packages = All packages，
+勾选 allow bypass 2FA），再 `npm config set //registry.npmjs.org/:_authToken <token>`。
+令牌只写进用户级 `~/.npmrc`，不要进仓库。
 
 ## 说明
 

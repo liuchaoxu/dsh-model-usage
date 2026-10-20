@@ -1,6 +1,6 @@
 {
   "name": "dsh-model-usage",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "DeepSeek Harness plugin: a 用量 button in the session header showing the provider-account usage behind the model the current conversation runs on (Command Code, DeepSeek, OpenCode Go, OpenRouter, Moonshot, SiliconFlow, New API), with a manual query-target override and background auto-refresh",
   "license": "MIT",
   "author": "liuchaoxu <ischaoxu@163.com>",
@@ -65,8 +65,12 @@
     "cordis.patch.yml",
     "locale/*.json",
     "icon.svg",
+    "docs/*.png",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"
-  ]
+  ],
+  "publishConfig": {
+  "access": "public"
+  }
 }
