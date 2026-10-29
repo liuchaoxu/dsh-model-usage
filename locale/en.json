@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Model usage",
-    "description": "Adds a Usage entry to the session header: the provider account usage behind the model this conversation runs on (balance, plan windows, request counts), with a manual query-target override and background auto-refresh."
+    "description": "Adds a Usage entry to the session header: provider account usage, manual query-target selection, background refresh, and a seven-day Command Code balance-spend trend."
   }
 }

@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented in this file. Versions follow Semantic Versioning.
 
+## 0.8.3
+
+- Command Code balance history: record account balance snapshots every 30 minutes, retain up to
+  seven days locally, and show spend trends with last 30 minutes, last 12 hours, today and yesterday
+  filters.
+
 ## 0.8.2
 
 - Documentation: README restructured for the npm package page and the repository; usage panel

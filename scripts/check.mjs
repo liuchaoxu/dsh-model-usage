@@ -216,7 +216,7 @@ if (exists('lib/client.js')) {
   } else {
     const used = new Set([...client.matchAll(/(?:\bt|fill\(\s*t)\(\s*"([^"]+)"/g)].map((match) => match[1]))
     // `kind.<id>` is looked up dynamically from the host's adapter id.
-    for (const key of zh) if (key.startsWith('kind.')) used.add(key)
+    for (const key of zh) if (key.startsWith('kind.') || key.startsWith('history.range.')) used.add(key)
     for (const key of used) {
       if (!zh.has(key)) fail(`lib/client.js: t("${key}") is missing from the zh dictionary`)
       if (!en.has(key)) fail(`lib/client.js: t("${key}") is missing from the en dictionary`)
