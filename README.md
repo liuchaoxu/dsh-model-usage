@@ -8,13 +8,20 @@ using.
 Queries run in the host process with the provider's own credential reference. The browser receives
 normalized values and the credential reference name; credential values never leave the host.
 
-![Usage panel](docs/screenshots/usage-panel.png)
+![Usage panel](docs/screenshots/u1.png)
+
+![Usage panel](docs/screenshots/u2.png)
+
+![Usage panel](docs/screenshots/u3.png)
+
+![Usage panel](docs/screenshots/u4.png)
+
+![Usage panel](docs/screenshots/u5.png)
 
 *Usage panel for a Command Code subscription (Chinese UI): five-hour and weekly quota windows,
 credit balance, spend, request count, and the model and credential reference used for the query.*
 
-*Command Code 订阅的用量面板：5 小时 / 7 天窗口、信用余额、已花费、请求数，以及本次查询使用的
-模型与凭据引用。*
+*用量面板：兼容深浅色模式*
 
 Published on npm as [`dsh-model-usage`](https://www.npmjs.com/package/dsh-model-usage).
 
@@ -26,10 +33,11 @@ Published on npm as [`dsh-model-usage`](https://www.npmjs.com/package/dsh-model-
   model the conversation runs on.
 - **Background refresh.** The mounted component refreshes on an interval, including while the panel
   is closed.
-- **Command Code balance history.** Successful balance queries save a baseline and then record
-  balance changes every 30 minutes, independently of the display refresh setting. Samples are kept
-  locally per account for up to seven days and shown as a spend line chart with last 30 minutes,
-  last 12 hours, today and yesterday filters.
+- **Command Code balance history.** The plugin queries on the system clock's ten-minute marks
+  (`:00`, `:10`, `:20`, …), independently of the display refresh setting. Samples are kept locally
+  per account for the current calendar month and the two preceding calendar months. The chart has
+  uniform time-axis ticks, actual sample positions for short ranges, daily totals for week/month
+  views, custom start/end dates, and month deletion/reset controls.
 - **Provider directory.** The deployment's provider routes are listed with their usage adapter,
   credential reference name and configuration state. Values are never read out.
 
@@ -254,9 +262,11 @@ OpenCode Zen（按量付费）没有用量接口（`/zen/v1/usage`、`/me`、`/c
   5 分钟。策略保存在 `dsh-model-usage:refresh`。
 - 数据仍在间隔内时打开面板不会发起请求；「刷新」按钮可强制查询。
 - 查询失败时保留上次数据并追加 `上次刷新失败：…`；仅在从未成功时显示整屏错误与「重试」。
-- Command Code 余额历史独立于面板刷新开关，每 30 分钟采样并按账户保存在浏览器本地，最多保留
-  七天；用量卡片提供「最近半小时 / 最近半天 / 今天 / 昨天」折线图筛选。首次记录作为余额基线，
-  后续每段消耗按前后余额差计算，余额增加时该段显示为零。
+- Command Code 余额历史独立于面板刷新开关，在系统时间的每小时 `00 / 10 / 20 / 30 / 40 / 50`
+  分自动查询。数据按账户保存在浏览器本地，保留当前自然月及前两个月；例如十月会保留十月、
+  九月、八月，七月数据自动清除。用量卡片提供「今天 / 昨天 / 近一周 / 近一月 / 自定义」筛选，
+  周和月按每天合计，短时间段按真实查询时间定位折线点，并可清除指定月份或重置当前账户记录。
+  首次记录作为余额基线，后续每段消耗按前后余额差计算，余额增加时该段显示为零。
 - host 侧单次用量请求超时 30 秒，浏览器侧另有 45 秒外层超时。
 
 ### 安全

@@ -1,6 +1,6 @@
 {
   "meta": {
     "title": "Model usage",
-    "description": "Adds a Usage entry to the session header: provider account usage, manual query-target selection, background refresh, and a seven-day Command Code balance-spend trend."
+    "description": "Adds a Usage entry to the session header with provider usage, ten-minute Command Code sampling, calendar-month trends, custom ranges and history cleanup."
   }
 }

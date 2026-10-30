@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented in this file. Versions follow Semantic Versioning.
 
+## 0.8.4
+
+- Command Code balance history: sample on ten-minute clock marks, retain the current and two
+  preceding calendar months, support custom date ranges and daily week/month aggregation, and add
+  month deletion and full reset controls.
+
 ## 0.8.3
 
 - Command Code balance history: record account balance snapshots every 30 minutes, retain up to

@@ -1,7 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Usage">
-  <rect x="1" y="1" width="30" height="30" rx="8" fill="#1f6feb"/>
-  <path d="M7.5 21.5a8.5 8.5 0 0 1 17 0" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"/>
-  <path d="M16 21.5 21.4 16.4" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round"/>
-  <circle cx="16" cy="21.5" r="2" fill="#ffffff"/>
-  <path d="M9.5 26h13" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" opacity="0.7"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Usage">
+  <defs>
+    <linearGradient id="usage-bg" x1="7" y1="4" x2="57" y2="60" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0A84FF"/>
+      <stop offset="0.55" stop-color="#147EFB"/>
+      <stop offset="1" stop-color="#30D158"/>
+    </linearGradient>
+    <linearGradient id="usage-glass" x1="13" y1="11" x2="51" y2="55" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.24"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="usage-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#003C7A" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect x="2" y="2" width="60" height="60" rx="17" fill="url(#usage-bg)"/>
+  <rect x="8" y="8" width="48" height="48" rx="13" fill="url(#usage-glass)" stroke="#FFFFFF" stroke-opacity="0.22"/>
+
+  <g filter="url(#usage-shadow)" fill="none" stroke="#FFFFFF" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 45.5h32" stroke-width="2" stroke-opacity="0.42"/>
+    <path d="M16 40.5 25 33l7 5 13-15" stroke-width="4"/>
+    <path d="m40.5 23 4.5 0 0 4.5" stroke-width="3"/>
+  </g>
+
+  <circle cx="16" cy="40.5" r="3.5" fill="#FFFFFF"/>
+  <circle cx="45" cy="23" r="3.5" fill="#30D158" stroke="#FFFFFF" stroke-width="2"/>
+  <circle cx="45" cy="23" r="1.2" fill="#FFFFFF"/>
 </svg>
