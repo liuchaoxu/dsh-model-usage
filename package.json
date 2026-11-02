@@ -1,6 +1,6 @@
 {
   "name": "dsh-model-usage",
-  "version": "0.8.4",
+  "version": "0.8.5",
   "description": "Provider-account usage for DeepSeek Harness: quota windows, credit balance and request counts for the model a conversation runs on, with per-provider adapters and manual target selection.",
   "license": "MIT",
   "author": "liuchaoxu <ischaoxu@163.com>",

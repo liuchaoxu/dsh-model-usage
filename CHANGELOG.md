@@ -2,6 +2,10 @@
 
 All notable changes to this package are documented in this file. Versions follow Semantic Versioning.
 
+## 0.8.5
+
+- Balance spend trend: add a centered enlarged chart view, a points-only toggle, and clearer spacing between dense ten-minute samples.
+
 ## 0.8.4
 
 - Command Code balance history: sample on ten-minute clock marks, retain the current and two
